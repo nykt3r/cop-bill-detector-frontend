@@ -1,73 +1,116 @@
-# React + TypeScript + Vite
+# COP Bill Detector — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicación web para detectar billetes colombianos falsos mediante IA. El usuario sube una imagen de un billete bajo luz UV y el frontend la envía a un backend de Deep Learning (PyTorch + FastAPI) que devuelve la clasificación: **genuino**, **falso** o **fondo**, junto con la denominación, nivel de confianza y top-3 de predicciones.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Categoría        | Tecnología                                           |
+| ---------------- | ---------------------------------------------------- |
+| Lenguaje         | TypeScript ~6.0                                      |
+| Framework UI     | React 19                                             |
+| Build tool       | Vite 8                                               |
+| Estilos          | Tailwind CSS v4                                      |
+| HTTP             | Fetch nativo (`multipart/form-data`)                 |
+| Linter           | ESLint 10 + `typescript-eslint`                      |
+| Paquetes         | npm                                                  |
 
-## React Compiler
+## ¿Cómo funciona?
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. El usuario arrastra o selecciona una imagen en el componente `UploadZone`.
+2. `App.tsx` pasa el archivo a `predictImage()` (`src/api.ts`), que lo envía como `FormData` via POST a `{VITE_API_URL}/predict`.
+3. Mientras espera la respuesta, se muestra un spinner de carga.
+4. Al recibir la respuesta (`PredictionResponse`), se renderiza `PredictionResult` con:
+   - Clase predecida y denominación
+   - Badge de estado (GENUINO / FALSO / FONDO) con código de colores
+   - Barra de confianza animada
+   - Top-3 de clases más probables con mini-barras
+   - Tiempo de inferencia en milisegundos
+5. Si ocurre un error (red, servidor, etc.), se muestra un banner con el mensaje.
+6. Las peticiones en curso se cancelan automáticamente si el usuario sube una nueva imagen antes de recibir la respuesta anterior (`AbortController`).
 
-## Expanding the ESLint configuration
+## Estados de la UI
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+La aplicación funciona como una máquina de estados simple:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+idle → loading → success
+                → error
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+- **idle**: estado inicial, solo se muestra la zona de carga.
+- **loading**: spinner "Analizando imagen..." y zona de carga deshabilitada.
+- **success**: se muestra `PredictionResult` con los datos.
+- **error**: banner con el mensaje de error.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Componentes
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── main.tsx                  # Entry point (React 19, StrictMode)
+├── App.tsx                   # Estado global y orquestación
+├── api.ts                    # Cliente HTTP (fetch)
+├── types.ts                  # Interfaces TypeScript
+├── index.css                 # Tailwind v4 + tema personalizado
+└── components/
+    ├── Header.tsx            # Barra superior con logo y título
+    ├── UploadZone.tsx        # Área drag & drop / click para subir imagen
+    ├── PredictionResult.tsx  # Resultados de la predicción
+    └── Footer.tsx            # Footer con créditos del stack
+```
+
+## API
+
+### `POST {VITE_API_URL}/predict`
+
+Envía una imagen y recibe la predicción.
+
+**Request:** `multipart/form-data` con campo `file`.
+
+**Response (`PredictionResponse`):**
+
+```typescript
+interface PredictionResponse {
+  class_name: string       // ej. "50000_fake"
+  class_index: number
+  confidence: number       // 0.0 – 1.0
+  is_fake: boolean
+  is_genuine: boolean
+  is_background: boolean
+  denomination: string | null  // ej. "$50,000 COP"
+  top3: Top3Entry[]        // siempre 3 entradas
+  inference_ms: number
+}
+```
+
+## Variables de entorno
+
+| Variable         | Default                  | Descripción                     |
+| ---------------- | ------------------------ | ------------------------------- |
+| `VITE_API_URL`   | `http://localhost:7860`  | URL base del backend FastAPI    |
+
+## Uso
+
+```bash
+# Clonar el repositorio
+git clone <repo>
+cd cop-bill-detector-frontend
+
+# Configurar la URL del backend
+cp .env.example .env
+# Editar .env con la URL deseada
+
+# Instalar dependencias
+npm install
+
+# Iniciar en desarrollo (HMR en http://localhost:5173)
+npm run dev
+
+# Compilar para producción
+npm run build
+
+# Previsualizar el build
+npm run preview
+
+# Linter
+npm run lint
 ```
