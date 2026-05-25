@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --color-genuine: #10b981;
+  --color-genuine-bg: rgba(16, 185, 129, 0.15);
+  --color-genuine-border: rgba(16, 185, 129, 0.4);
+  --color-fake: #ef4444;
+  --color-fake-bg: rgba(239, 68, 68, 0.15);
+  --color-fake-border: rgba(239, 68, 68, 0.4);
+  --color-bgnd: #64748b;
+  --color-bgnd-bg: rgba(100, 116, 139, 0.15);
+  --color-bgnd-border: rgba(100, 116, 139, 0.4);
+}
