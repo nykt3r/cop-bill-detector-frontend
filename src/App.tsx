@@ -105,12 +105,14 @@ function App() {
           </div>
         )}
 
-        {/* Input: Upload or Camera */}
-        {status === "idle" && mode === "upload" && (
-          <UploadZone onFile={handleFile} disabled={false} />
+        {/* Upload: siempre visible para mantener preview */}
+        {mode === "upload" && (
+          <UploadZone onFile={handleFile} disabled={status === "loading"} />
         )}
-        {status === "idle" && mode === "camera" && (
-          <CameraCapture onFile={handleFile} disabled={false} />
+
+        {/* Camera: visible mientras no haya resultado */}
+        {mode === "camera" && status !== "success" && (
+          <CameraCapture onFile={handleFile} disabled={status === "loading"} />
         )}
 
         {/* Loading */}
